@@ -261,7 +261,7 @@ public class SqlImporter {
                     } else if (rsmd.getColumnType(i) == java.sql.Types.INTEGER) {
                         map.put(columnName, rs.getInt(columnName));
                     } else if (rsmd.getColumnType(i) == java.sql.Types.NVARCHAR) {
-                        map.put(columnName, rs.getString(columnName));
+                        map.put(columnName, rs.getNString(columnName));
                     } else if (rsmd.getColumnType(i) == java.sql.Types.VARCHAR) {
                         map.put(columnName, rs.getString(columnName));
                     } else if (rsmd.getColumnType(i) == java.sql.Types.TINYINT) {
