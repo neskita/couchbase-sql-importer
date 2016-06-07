@@ -4,6 +4,7 @@ import com.couchbase.client.CouchbaseClient;
 import com.couchbase.client.protocol.views.DesignDocument;
 import com.couchbase.client.protocol.views.ViewDesign;
 import com.google.gson.Gson;
+import com.sun.deploy.util.StringUtils;
 
 import java.io.FileInputStream;
 import java.net.URI;
@@ -30,6 +31,8 @@ public class SqlImporter {
     private static final String CREATE_VIEWS = "import.createViews";
     private static final String TYPE_FIELD = "import.typefield";
     private static final String TYPE_CASE = "import.fieldcase";
+    private static final String TABLE_NAME_COLUMN_COMPOSED = "import.tablename.columns";
+    private static final String TABLE_NAME_PREFIX = "import.tablename.prefix";
 
     private CouchbaseClient couchbaseClient = null;
     private Connection connection = null;
@@ -50,7 +53,10 @@ public class SqlImporter {
     private String typeFieldCase = null;
     private boolean createTableViewEnable = true;
     private String[] tableList = null;
+    private String[] tableNameColumnsList = null;
+    private String tableNamePrefix = null;
 
+    private Map<String, String> fixColumns = null;
 
     public static void main(String[] args) {
 
@@ -156,6 +162,13 @@ public class SqlImporter {
                 typeFieldCase = prop.getProperty(TYPE_CASE);
             }
 
+            if (prop.containsKey(TABLE_NAME_COLUMN_COMPOSED)) {
+                tableNameColumnsList = prop.getProperty(TABLE_NAME_COLUMN_COMPOSED).split(",");
+            }
+
+            if (prop.containsKey(TABLE_NAME_PREFIX)) {
+                tableNamePrefix = prop.getProperty(TABLE_NAME_PREFIX);
+            }
 
             System.out.println("\nImporting table(s)");
             System.out.println("\tfrom : \t" + sqlConnString);
@@ -248,7 +261,7 @@ public class SqlImporter {
                     } else if (rsmd.getColumnType(i) == java.sql.Types.INTEGER) {
                         map.put(columnName, rs.getInt(columnName));
                     } else if (rsmd.getColumnType(i) == java.sql.Types.NVARCHAR) {
-                        map.put(columnName, rs.getNString(columnName));
+                        map.put(columnName, rs.getString(columnName));
                     } else if (rsmd.getColumnType(i) == java.sql.Types.VARCHAR) {
                         map.put(columnName, rs.getString(columnName));
                     } else if (rsmd.getColumnType(i) == java.sql.Types.TINYINT) {
@@ -268,8 +281,19 @@ public class SqlImporter {
                     map.put(typeField, typeName);
                 }
 
+                String typeKey = typeName+ ":" + rs.getRow();
+                if (tableNameColumnsList != null)
+                    if (tableNameColumnsList != null && tableNameColumnsList.length > 0) {
+                        List<String> pkValues = new ArrayList<>();
+                        if (tableNamePrefix != null)
+                            pkValues.add(tableNamePrefix);
+                        for (String name : tableNameColumnsList)
+                            pkValues.add(map.get(name).toString());
+                        typeKey = StringUtils.join(pkValues,"-");
+                    }
+
                 // use the rs number as key with table name
-                this.getCouchbaseClient().set(typeName + ":" + rs.getRow(), gson.toJson(map)).get();
+                this.getCouchbaseClient().set(typeKey, gson.toJson(map)).get();
 
 
                 numRow = rs.getRow();
